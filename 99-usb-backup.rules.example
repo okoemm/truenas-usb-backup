@@ -1,0 +1,20 @@
+# 99-usb-backup.rules – starts usb-backup.sh when the backup disk is plugged in
+#
+# Install (see README for making it survive TrueNAS updates):
+#   mkdir -p /run/udev/rules.d          # not present by default
+#   cp 99-usb-backup.rules.example /run/udev/rules.d/99-usb-backup.rules
+#   udevadm control --reload
+#
+# Adjust before use:
+#   ENV{ID_FS_UUID}   GUID of the pool on the USB disk (= TGT_GUID in the script),
+#                     unique unlike the pool name; get it with:
+#                     udevadm info /dev/sdX1 | grep ID_FS_UUID=
+#   script path       absolute path to usb-backup.sh
+#
+# Why systemd-run:
+#   --no-block                 udev kills long-running RUN+= programs after ~3 minutes
+#   --unit=usb-backup          fixed name: a second event during a run starts no parallel run
+#   --collect                  no "failed" unit is left behind that would block the next start
+#   TimeoutStopSec=300         on stop/shutdown, cleanup (export + mail) gets time to finish
+
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_FS_TYPE}=="zfs_member", ENV{ID_FS_UUID}=="1234567890123456789", RUN+="/usr/bin/systemd-run --no-block --collect --unit=usb-backup --property=TimeoutStopSec=300 /mnt/tank/scripts/usb-backup.sh"
